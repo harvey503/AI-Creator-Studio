@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Creator Studio - Vue 3 Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* 自定义滚动条 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        
+        /* 动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        /* 文本选择颜色 */
+        ::selection {
+            background-color: rgba(20, 184, 166, 0.3);
+            color: white;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-950 text-slate-300 font-sans min-h-screen overflow-hidden">
+    <div id="app">
+        <!-- 头部导航 -->
+        <header class="flex items-center justify-between px-6 py-4 bg-slate-900 border-b border-slate-800 text-white z-50 relative">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-teal-400 to-blue-600 rounded-lg flex items-center justify-center font-bold shadow-lg shadow-teal-500/20">
+                    AI
+                </div>
+                <span class="text-lg font-semibold tracking-wide text-slate-200">Creator Studio</span>
+                <span class="text-slate-500 text-sm ml-2 hidden sm:inline-block">/ 爆款视频创作系统 (Vue 3)</span>
+            </div>
+
+            <div class="flex bg-slate-800 rounded-full p-1">
+                <button 
+                    @click="currentStep = 1"
+                    class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300"
+                    :class="currentStep === 1 ? 'bg-teal-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'"
+                >
+                    1. 产品设置
+                </button>
+                <button 
+                    @click="currentStep = 2"
+                    class="px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-1"
+                    :class="currentStep === 2 ? 'bg-teal-500 text-slate-900 shadow-lg' : 'text-slate-400 hover:text-white'"
+                >
+                    <icon name="sparkles" :size="14"></icon>
+                    2. 智能生成
+                </button>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs border border-slate-600">
+                    JD
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="h-[calc(100vh-64px)] w-full overflow-hidden">
+            <!-- 步骤 1: 产品设置 -->
+            <transition enter-active-class="animate-fade-in">
+                <div v-if="currentStep === 1" class="h-full overflow-y-auto p-8 max-w-7xl mx-auto">
+                    <step1-config @next="currentStep = 2"></step1-config>
+                </div>
+            </transition>
+
+            <!-- 步骤 2: 脚本生成 -->
+            <transition enter-active-class="animate-fade-in">
+                <div v-if="currentStep === 2" class="h-full flex flex-col lg:flex-row">
+                    <step2-script></step2-script>
+                </div>
+            </transition>
+        </main>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        // --- 图标组件 (简易版 Lucide 实现) ---
+        const Icon = {
+            props: ['name', 'size', 'class'],
+            template: `
+                <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    :width="size || 24" 
+                    :height="size || 24" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    stroke-width="2" 
+                    stroke-linecap="round" 
+                    stroke-linejoin="round"
+                    :class="$props.class"
+                    v-html="path"
+                >
+                </svg>
+            `,
+            setup(props) {
+                const paths = {
+                    sparkles: '<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>',
+                    settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+                    globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+                    maximize2: '<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>',
+                    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+                    image: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+                    video: '<path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/>',
+                    checkcircle: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+                    chevronup: '<path d="m18 15-6-6-6 6"/>',
+                    chevrondown: '<path d="m6 9 6 6 6-6"/>',
+                    chevronright: '<path d="m9 18 6-6-6-6"/>',
+                    play: '<polygon points="5 3 19 12 5 21 5 3"/>',
+                    copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+                    filejson: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 12a1 1 0 0 0-1 1v1a1 1 0 0 1-1 1 1 1 0 0 1 1 1v1a1 1 0 0 0 1 1"/>',
+                    refreshcw: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
+                };
+                return { path: paths[props.name.toLowerCase()] || '' };
+            }
+        };
+
+        // --- 组件: 产品设置 (Step 1) ---
+        const Step1Config = {
+            components: { Icon },
+            template: `
+                <div class="grid grid-cols-12 gap-8">
+                    <!-- 左侧表单 -->
+                    <div class="col-span-12 lg:col-span-5 space-y-6">
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                <icon name="globe" :size="14"></icon> 目标市场 / Target Market
+                            </label>
+                            <select class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none text-slate-300">
+                                <option>United States (美国)</option>
+                                <option>United Kingdom (英国)</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase">产品标题 (必填)</label>
+                            <input 
+                                type="text" 
+                                placeholder="例如：亚马逊爆款无叶挂脖风扇..." 
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none placeholder-slate-600 text-slate-300"
+                            />
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase">产品描述 / 卖点 (可选)</label>
+                            <textarea 
+                                rows="4"
+                                placeholder="粘贴亚马逊五点描述或用户评论..." 
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none placeholder-slate-600 resize-none text-slate-300"
+                            ></textarea>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase">创意想法 (可选)</label>
+                            <textarea 
+                                rows="3"
+                                placeholder="逐帧复刻，更强的钩子。需要换一个模特、换一个场景..." 
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm focus:ring-2 focus:ring-teal-500 outline-none placeholder-slate-600 resize-none text-slate-300"
+                                v-model="idea"
+                            ></textarea>
+                        </div>
+
+                        <!-- 底部参数栏 -->
+                        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
+                            <div class="flex items-center gap-2 text-teal-400 font-semibold text-sm">
+                                <icon name="settings" :size="16"></icon> 视频参数
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">画面比例</label>
+                                    <select class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300">
+                                        <option>9:16 (竖屏通用)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-500 mb-1">分辨率</label>
+                                    <select class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300">
+                                        <option>2K (高清 - 推荐)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧素材上传 -->
+                    <div class="col-span-12 lg:col-span-7 space-y-6">
+                        <!-- 产品图 -->
+                        <div class="space-y-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase flex items-center justify-between">
+                                <span>指定产品 (可选)</span>
+                                <span class="text-slate-600 font-normal text-[10px]">上传1-4张素材图，提取特征用于所有镜头</span>
+                            </label>
+                            <div class="grid grid-cols-5 gap-3">
+                                <div class="aspect-square bg-slate-800 rounded-lg border border-teal-500/50 relative overflow-hidden group cursor-pointer shadow-lg shadow-teal-900/10">
+                                    <img src="https://images.unsplash.com/photo-1586495777744-4413f21062fa?auto=format&fit=crop&q=80&w=300&h=300" alt="Product" class="w-full h-full object-cover" />
+                                    <div class="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center transition-all duration-300">
+                                        <icon name="maximize2" :size="16" class="text-white"></icon>
+                                    </div>
+                                </div>
+                                <div v-for="i in 4" :key="i" class="aspect-square bg-slate-800/50 rounded-lg border border-slate-700 border-dashed flex items-center justify-center text-slate-600 hover:text-slate-400 hover:border-slate-500 cursor-pointer transition-colors duration-200">
+                                    <icon name="upload" :size="18"></icon>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 模特与参考 -->
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                    <icon name="image" :size="14"></icon> 指定模特 (可选)
+                                </label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div v-for="i in 3" :key="i" class="aspect-square bg-slate-800/50 rounded-lg border border-slate-700 border-dashed flex items-center justify-center text-slate-600 hover:border-slate-500 cursor-pointer">
+                                        <icon name="upload" :size="14"></icon>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                                    <icon name="video" :size="14"></icon> 参考视频 (可选)
+                                </label>
+                                <div class="h-24 bg-slate-800 rounded-lg border border-teal-500/30 overflow-hidden relative group">
+                                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=400" alt="Ref" class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
+                                    <div class="absolute top-2 right-2 bg-teal-500 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">REF</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 启动按钮 -->
+                        <div class="pt-8">
+                            <button 
+                                @click="$emit('next')"
+                                class="w-full py-4 bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-400 hover:to-blue-400 text-slate-900 font-bold text-lg rounded-xl shadow-lg shadow-teal-500/20 transition-all active:scale-[0.99] flex items-center justify-center gap-2 group"
+                            >
+                                <icon name="sparkles" class="animate-pulse group-hover:rotate-12 transition-transform"></icon>
+                                启动 AI 智能创作流
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `,
+            setup() {
+                const idea = ref('逐帧复刻，更强的钩子。需要换一个模特、换一个场景。');
+                return { idea };
+            }
+        };
+
+        // --- 组件: 策略分析面板 ---
+        const StrategyPanel = {
+            components: { Icon },
+            template: `
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="p-1.5 bg-teal-500/10 rounded-lg text-teal-400">
+                            <icon name="sparkles" :size="18"></icon>
+                        </div>
+                        <h3 class="font-bold text-slate-100">专家团队分析报告</h3>
+                    </div>
+
+                    <!-- 合规性检查 -->
+                    <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 transition-all hover:bg-slate-800/70">
+                        <div class="flex items-center gap-2 text-teal-400 text-xs font-bold mb-2">
+                            <icon name="checkcircle" :size="14"></icon> TIKTOK 合规性 & 文化检查
+                        </div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs text-slate-400">风险等级 (Risk Level)</span>
+                            <span class="bg-green-500/20 text-green-400 text-[10px] px-2 py-0.5 rounded font-bold border border-green-500/30">Safe</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            脚本内容符合TikTok广告政策。未涉及夸大功效或品牌名称侵权。使用了 "hydrating" (保湿) 和 "shine" (光泽) 等合规词汇。
+                        </p>
+                    </div>
+
+                    <!-- 文化备注 -->
+                    <div class="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 transition-all hover:bg-slate-800/70">
+                        <div class="text-slate-300 text-xs font-bold mb-2">文化背景备注 (CULTURE NOTES)</div>
+                        <p class="text-xs text-slate-400 leading-relaxed italic border-l-2 border-slate-600 pl-2">
+                            "使用了美国 'Clean Girl Aesthetic' (干净女孩美学) 做出流行，强调自然妆容和保湿效果。口语表达地道，使用 'Game changer', 'Obsessed' 等词汇。"
+                        </p>
+                    </div>
+
+                    <!-- 核心策略 -->
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-800/50 border border-purple-500/30 rounded-xl p-4 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 duration-500"></div>
+                        <div class="text-purple-300 text-xs font-bold mb-2 flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 bg-purple-400 rounded-full animate-pulse"></div>
+                            核心策略 (CORE STRATEGY)
+                        </div>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            利用"讲解+展示"形式。通过对比 <span class="text-white font-medium">秘密 (Secret)</span> 与 <span class="text-white font-medium">丝滑质感</span>。弱化 "Lip Oil in a stick" 的刻意概念，结合色号展示选中诱惑感。
+                        </p>
+                    </div>
+
+                    <!-- 钩子 -->
+                    <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-sm">
+                        <div class="text-slate-400 text-[10px] font-bold uppercase mb-1">强钩子 (HOOK)</div>
+                        <p class="text-sm font-medium text-white">
+                            "这不是普通的口红，这是固体唇油！告诉我你被种草了。"
+                        </p>
+                    </div>
+                </div>
+            `
+        };
+
+        // --- 组件: 单个分镜条目 ---
+        const ShotItem = {
+            props: ['index', 'data', 'isExpanded'],
+            components: { Icon },
+            template: `
+                <div class="border rounded-xl transition-all duration-300 overflow-hidden"
+                    :class="isExpanded ? 'bg-slate-800/80 border-teal-500/50 shadow-2xl shadow-black/50' : 'bg-slate-800/30 border-slate-700 hover:border-slate-600'">
+                    
+                    <!-- 头部摘要行 -->
+                    <div @click="$emit('toggle')" class="flex items-center justify-between p-4 cursor-pointer select-none">
+                        <div class="flex items-center gap-4">
+                            <div class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider transition-colors"
+                                :class="isExpanded ? 'bg-teal-500 text-slate-900' : 'bg-slate-700 text-slate-400'">
+                                分镜 {{ index + 1 }} <span v-if="isExpanded">MASTER</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <h4 class="text-sm font-medium text-slate-200 w-full sm:w-96 truncate">{{ data.title }}</h4>
+                                <p v-if="!isExpanded" class="text-xs text-slate-500 w-full sm:w-96 truncate">{{ data.visual }}</p>
+                            </div>
+                        </div>
+                        <div class="text-slate-500 transition-transform duration-300" :class="{'rotate-180': isExpanded}">
+                            <icon name="chevrondown" :size="20"></icon>
+                        </div>
+                    </div>
+
+                    <!-- 展开内容区 -->
+                    <div v-show="isExpanded" class="px-4 pb-6 border-t border-slate-700/50 transition-all duration-500 ease-in-out">
+                        <div class="grid grid-cols-12 gap-6 pt-4">
+                            <!-- 文本描述列 -->
+                            <div class="col-span-12 lg:col-span-8 space-y-5">
+                                <!-- Visual -->
+                                <div class="group">
+                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5">
+                                        <icon name="image" :size="12"></icon> 画面内容 (VISUAL)
+                                    </div>
+                                    <div class="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 text-sm text-slate-300 leading-relaxed hover:border-slate-600 transition-colors">
+                                        {{ data.visual }}
+                                    </div>
+                                </div>
+
+                                <!-- Action -->
+                                <div>
+                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5">
+                                        <icon name="play" :size="12"></icon> 动作 (ACTION)
+                                    </div>
+                                    <div class="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 text-sm text-slate-300">
+                                        {{ data.action }}
+                                    </div>
+                                </div>
+
+                                <!-- Camera -->
+                                <div>
+                                    <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase mb-1.5">
+                                        <icon name="video" :size="12"></icon> 运镜 (CAMERA)
+                                    </div>
+                                    <div class="bg-slate-900/50 border border-slate-700/50 rounded-lg p-3 text-sm text-slate-300">
+                                        {{ data.camera }}
+                                    </div>
+                                </div>
+
+                                <!-- Prompt -->
+                                <div class="bg-slate-900 border border-blue-500/20 rounded-lg p-4 mt-2 hover:border-blue-500/40 transition-colors">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-blue-400 text-xs font-bold flex items-center gap-1">
+                                            <icon name="sparkles" :size="12"></icon> 文生图提示词 (IMAGE PROMPT)
+                                        </span>
+                                        <button class="text-[10px] flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded border border-slate-700 transition-colors">
+                                            <icon name="copy" :size="10"></icon> 一键复制
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-slate-400 font-mono leading-relaxed select-all">
+                                        {{ data.prompt }}
+                                    </p>
+                                </div>
+
+                                <!-- JSON Block -->
+                                <div class="space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2 text-[10px] font-bold text-purple-400 uppercase">
+                                            <icon name="filejson" :size="12"></icon> 视频生成 MANIFEST (VEO JSON)
+                                        </div>
+                                        <button class="text-[10px] text-slate-500 hover:text-slate-300">
+                                            一键复制
+                                        </button>
+                                    </div>
+                                    <pre class="bg-black/40 border border-slate-700 rounded-lg p-3 text-[10px] font-mono text-green-400 overflow-x-auto custom-scrollbar">{{ generateJson(data) }}</pre>
+                                </div>
+                            </div>
+
+                            <!-- 右侧预览区 -->
+                            <div class="col-span-12 lg:col-span-4 flex flex-col gap-3">
+                                <div class="relative aspect-[9/16] bg-black rounded-xl overflow-hidden border border-slate-700 group shadow-lg">
+                                    <img :src="data.imgUrl" alt="Preview" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-500" />
+                                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60"></div>
+                                    
+                                    <!-- 覆盖层控件 -->
+                                    <div class="absolute bottom-4 left-0 right-0 px-4 flex justify-center translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
+                                        <button class="bg-teal-500 hover:bg-teal-400 text-slate-900 text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-2 w-full justify-center transition-colors">
+                                            <icon name="refreshcw" :size="14"></icon> 重生成
+                                        </button>
+                                    </div>
+
+                                    <div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white text-[10px] px-2 py-1 rounded border border-white/10">
+                                        VEO 4K
+                                    </div>
+                                </div>
+
+                                <!-- 对话栏 -->
+                                <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 mt-auto">
+                                    <div class="text-[10px] text-slate-500 mb-1">中文大意 (CHINESE)</div>
+                                    <p class="text-xs text-slate-300">
+                                        {{ data.chinese_summary }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `,
+            setup(props) {
+                const generateJson = (data) => {
+                    const json = {
+                        veo_production_manifest: {
+                            version: "4.0",
+                            shot_summary: data.prompt.substring(0, 50) + "...",
+                            input_assets: { reference_image: "Start Frame" },
+                            color_space: "Rec. 2020",
+                            dynamic_range: "HDR"
+                        }
+                    };
+                    return JSON.stringify(json, null, 2);
+                };
+                return { generateJson };
+            }
+        };
+
+        // --- 组件: 步骤 2 脚本生成主视图 ---
+        const Step2Script = {
+            components: { StrategyPanel, ShotItem, Icon },
+            template: `
+                <!-- 左侧栏：分析与设置 -->
+                <div class="w-full lg:w-1/4 bg-slate-900 border-r border-slate-800 p-6 overflow-y-auto custom-scrollbar z-10 shrink-0">
+                    <strategy-panel></strategy-panel>
+                    
+                    <!-- 底部设置 -->
+                    <div class="mt-8 pt-6 border-t border-slate-800">
+                        <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+                            <span>VOICE MODEL</span>
+                            <span class="text-purple-400">Puck (Locked)</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-slate-500">
+                            <span>RESOLUTION</span>
+                            <span class="text-teal-400">RES 2K</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧栏：脚本列表 -->
+                <div class="w-full lg:w-3/4 bg-slate-950 p-6 lg:p-10 overflow-y-auto custom-scrollbar">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            分镜脚本 <span class="bg-slate-800 text-slate-400 text-xs px-2 py-0.5 rounded-full">共 {{ shots.length }} 个镜头</span>
+                        </h2>
+                        <button class="bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-lg shadow-teal-500/10 flex items-center gap-2">
+                            <icon name="sparkles" :size="14"></icon> 基于分镜1生成剩余全部
+                        </button>
+                    </div>
+
+                    <div class="space-y-4 pb-20">
+                        <shot-item 
+                            v-for="(shot, idx) in shots" 
+                            :key="idx" 
+                            :index="idx" 
+                            :data="shot" 
+                            :is-expanded="openIndex === idx" 
+                            @toggle="toggle(idx)"
+                        ></shot-item>
+                    </div>
+                </div>
+            `,
+            setup() {
+                const openIndex = ref(0);
+                const shots = ref([
+                    {
+                        title: "高清特写，一位典型的美国Z世代金发美女",
+                        visual: "中景镜头。一位年轻漂亮的亚裔女性（参考图3），黑发，妆容自然精致。她坐在白色的化妆台前...",
+                        action: "模特震惊完口红，抿了一下嘴唇，眼睛瞪大表示震惊。然后指着嘴唇上的光泽，语气夸张。",
+                        camera: "固定镜头，焦点在模特面部和手中的产品。",
+                        prompt: "Medium shot of a beautiful young Asian woman with dark hair and natural makeup, wearing a black top, sitting in a modern white bedroom with a makeup vanity and ring light. She is holding a silver lipstick tube, looking surprised and excited. High quality, 4k, TikTok influencer style.",
+                        chinese_summary: "e.l.f. 你看到这个了吗？你是不是疯了？把奢华唇油做成固体棒还卖这个价格？",
+                        imgUrl: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=600"
+                    },
+                    {
+                        title: "手部特写，模特拿着唇膏与某样看不见的高级物品...",
+                        visual: "模特快速转动唇膏管，展示其高级的银色质感，然后对准摄像头。",
+                        action: "Focus on the hand texture and the metallic reflection of the product casing.",
+                        camera: "微距镜头，浅景深。",
+                        prompt: "Close up shot of woman's hands holding silver elf lipstick tube, expensive jewelry on wrist, blurred luxury background, cinematic lighting.",
+                        chinese_summary: "质感完全不输大牌，难以置信的手感。",
+                        imgUrl: "https://images.unsplash.com/photo-1522337660859-02fbefca4702?auto=format&fit=crop&q=80&w=600"
+                    },
+                    {
+                        title: "极致微距特写，模特将唇膏涂抹在下唇上...",
+                        visual: "唇膏接触嘴唇的瞬间，膏体融化成油状光泽。",
+                        action: "Slow smooth application on lower lip.",
+                        camera: "Extreme close-up macro shot.",
+                        prompt: "Macro shot of lipstick application on lips, high gloss texture, melting texture details, soft skin pores visible, 8k resolution.",
+                        chinese_summary: "一抹化水，这光泽度绝了。",
+                        imgUrl: "https://images.unsplash.com/photo-1596462502278-27bfdd403348?auto=format&fit=crop&q=80&w=600"
+                    },
+                    {
+                        title: "模特全脸展示，嘴唇呈现完美的'玻璃唇'效果...",
+                        visual: "模特自信地微笑，左右转头展示光泽，创造出'玻璃唇'反光。",
+                        action: "Model smiling and turning head slightly.",
+                        camera: "Portrait shot, soft ring light.",
+                        prompt: "Portrait of a girl with glossy glass lips, smiling confidently, studio lighting, glowing skin, beauty commercial style.",
+                        chinese_summary: "看看这个玻璃唇效果，完全不粘腻。",
+                        imgUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600"
+                    }
+                ]);
+
+                const toggle = (idx) => {
+                    openIndex.value = openIndex.value === idx ? -1 : idx;
+                };
+
+                return { openIndex, shots, toggle };
+            }
+        };
+
+        // --- 主应用逻辑 ---
+        const App = {
+            components: { Step1Config, Step2Script, Icon },
+            setup() {
+                const currentStep = ref(2); // 默认显示步骤 2
+                return { currentStep };
+            }
+        };
+
+        // 挂载 Vue 应用
+        createApp(App).mount('#app');
+    </script>
+</body>
+</html>
