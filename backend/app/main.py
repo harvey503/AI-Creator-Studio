@@ -14,12 +14,12 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     settings = get_settings()
-    print(f"🚀 AI Creator Studio API starting...")
-    print(f"📍 AI Provider: {settings.ai_provider}")
-    print(f"🔧 Debug Mode: {settings.debug}")
+    print("AI Creator Studio API starting...")
+    print(f"AI Provider: {settings.ai_provider}")
+    print(f"Debug Mode: {settings.debug}")
     yield
     # 关闭时执行
-    print("👋 AI Creator Studio API shutting down...")
+    print("AI Creator Studio API shutting down...")
 
 
 # 创建FastAPI应用
